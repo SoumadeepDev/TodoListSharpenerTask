@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Home | TodoList</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    />
+  </head>
+
+  <body class="body" data-page="home">
+    <header class="heading d-flex">
+      <div class="d-flex align-center gap-sm">
+        <img src="./assets/notes-sm.png" />
+        <h1 class="heading-1">
+          <a class="link" href="/">TodoList</a>
+        </h1>
+      </div>
+      <nav class="nav d-flex align-center">
+        <ul class="list-non-bullet">
+          <li class="list">
+            <a href="/" class="link cursor">Home</a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <div class="container d-flex direction-column align-center relative">
+      <textarea class="text-area title" placeholder="Title"></textarea>
+      <textarea class="text-area note" placeholder="Description"></textarea>
+      <button
+        class="button add-btn d-flex align-center justify-center absolute"
+      >
+        <span class="material-icons-outlined"> add </span>
+      </button>
+    </div>
+    <div class="notes-display">
+      <div class="pin-title d-none">Completed</div>
+      <div class="pinned-notes-container d-flex wrap gap-md"></div>
+      <div class="other-title d-none">Incompleted</div>
+      <div class="notes-container d-flex wrap gap-md"></div>
+    </div>
+    <script type="module" src="cloudScript.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  </body>
+</html>
