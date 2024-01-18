@@ -1,7 +1,5 @@
 import { renderNotes } from "./app.js";
 
-const API_URL = "https://crudcrud.com/api/dc232b33d43741fea57737a10227e03b";
-
 const title = document.querySelector(".title");
 const note = document.querySelector(".note");
 const addButton = document.querySelector(".add-btn");
@@ -10,121 +8,150 @@ const showCompletedNotes = document.querySelector(".pinned-notes-container");
 const showOtherNotes = document.querySelector(".notes-container");
 const pinTitle = document.querySelector(".pin-title");
 const otherTitle = document.querySelector(".other-title");
+
 let arrayofNotes = [];
-// Load notes from the CRUD CRUD API
-async function fetchNotes() {
-  try {
-    const response = await axios.get(`${API_URL}/todokey`);
-    return response.data || [];
-  } catch (error) {
-    console.error("Error fetching notes:", error);
-    return [];
-  }
-}
 
-// Save notes to the CRUD CRUD API
-async function saveNotes(notes) {
-  try {
-    await axios.put(`${API_URL}/todokey`, notes);
-  } catch (error) {
-    console.error("Error saving notes:", error);
-  }
-}
-
-// Separate completed and other notes for rendering
-async function separateNotes() {
-  const arrayofNotes = await fetchNotes();
+// Render notes on the page
+function updateNotesDisplay() {
   const completedNotes = arrayofNotes.filter(({ isCompleted }) => isCompleted);
   const otherNotes = arrayofNotes.filter(({ isCompleted }) => !isCompleted);
-  return { arrayofNotes, completedNotes, otherNotes };
-}
 
-// Render notes on page load
-(async () => {
-  const { completedNotes, otherNotes } = await separateNotes();
   showCompletedNotes.innerHTML = renderNotes(completedNotes);
   showOtherNotes.innerHTML = renderNotes(otherNotes);
-  toggleTitleVisibility();
-})();
 
+  toggleTitleVisibility();
+}
 // Toggle visibility of title elements based on notes existence
 function toggleTitleVisibility() {
-  if (arrayofNotes.length > 0) {
-    pinTitle.classList.remove("d-none");
-    otherTitle.classList.remove("d-none");
-  } else {
-    pinTitle.classList.add("d-none");
-    otherTitle.classList.add("d-none");
-  }
+  const hasNotes = arrayofNotes.length > 0;
+  pinTitle.classList.toggle("d-none", !hasNotes);
+  otherTitle.classList.toggle("d-none", !hasNotes);
 }
 
-addButton.addEventListener("click", async () => {
-  if (title.value.trim().length > 0 || note.value.trim().length > 0) {
+// Load notes from the API
+axios
+  .get("https://crudcrud.com/api/4d44cf3be9c54657b31ec13e4cd5acb0/todos")
+  .then((res) => {
+    arrayofNotes = res.data;
+    updateNotesDisplay();
+  })
+  .catch((error) => {
+    console.error("Error fetching notes:", error);
+  });
+
+// Initial toggle on page load
+window.addEventListener("DOMContentLoaded", () => {
+  updateNotesDisplay();
+  displayTodo();
+});
+addButton.addEventListener("click", () => {
+  const trimmedTitle = title.value.trim();
+  const trimmedNote = note.value.trim();
+
+  if (trimmedTitle.length > 0 || trimmedNote.length > 0) {
     const newNote = {
-      title: title.value.trim(),
-      note: note.value.trim(),
-      id: Date.now(),
+      title: trimmedTitle,
+      note: trimmedNote,
       isCompleted: false,
     };
 
-    arrayofNotes = [...arrayofNotes, newNote];
+    axios
+      .post(
+        "https://crudcrud.com/api/4d44cf3be9c54657b31ec13e4cd5acb0/todos",
+        newNote
+      )
+      .then((res) => {
+        // Assuming the API returns the updated note object with an _id property
+        const addedNote = res.data;
+        if (addedNote && addedNote._id) {
+          arrayofNotes = [...arrayofNotes, addedNote];
+          updateNotesDisplay();
+          displayTodo();
 
-    if (newNote.isCompleted) {
-      showCompletedNotes.innerHTML = renderNotes(
-        arrayofNotes.filter(({ isCompleted }) => isCompleted)
-      );
-    } else {
-      showOtherNotes.innerHTML = renderNotes(
-        arrayofNotes.filter(({ isCompleted }) => !isCompleted)
-      );
-    }
-
-    await saveNotes(arrayofNotes);
+          // Clear input values after successful addition
+          title.value = "";
+          note.value = "";
+        } else {
+          console.error("Invalid response from the API:", res);
+        }
+      })
+      .catch((error) => {
+        console.error("Error saving note:", error);
+      });
   }
-
-  title.value = "";
-  note.value = "";
-  toggleTitleVisibility();
 });
 
-notesDisplay.addEventListener("click", async (e) => {
-  let type = e.target.dataset.type;
-  let noteId = e.target.dataset.id;
+function displayTodo() {
+  notesDisplay.addEventListener("click", (e) => {
+    const type = e.target.dataset.type;
 
-  switch (type) {
-    case "del":
-      const noteToDelete = arrayofNotes.find(
-        ({ id }) => id.toString() === noteId
-      );
-      if (noteToDelete && !noteToDelete.isCompleted) {
-        arrayofNotes = arrayofNotes.filter(
-          ({ id }) => id.toString() !== noteId
-        );
-        showOtherNotes.innerHTML = renderNotes(
-          arrayofNotes.filter(({ isCompleted }) => !isCompleted)
-        );
-        await saveNotes(arrayofNotes);
-        toggleTitleVisibility();
+    if (type) {
+      const noteIndex = e.target.closest(".single-note").dataset.index;
+
+      switch (type) {
+        case "del":
+          axios
+            .delete(
+              `https://crudcrud.com/api/4d44cf3be9c54657b31ec13e4cd5acb0/todos/${arrayofNotes[noteIndex]._id}`
+            )
+            .then(() => {
+              // Remove the deleted note from arrayofNotes
+              arrayofNotes.splice(noteIndex, 1);
+              updateNotesDisplay(); // Update UI after successful delete
+            })
+            .catch((error) => {
+              console.error("Error deleting note:", error);
+            });
+          break;
+
+        case "completed_todo":
+          const currentStatus = arrayofNotes[noteIndex].isCompleted;
+          const title = arrayofNotes[noteIndex].title;
+          const note = arrayofNotes[noteIndex].note;
+
+          if (currentStatus) {
+            // Note is in completed section, move it to incompleted section
+            axios
+              .put(
+                `https://crudcrud.com/api/4d44cf3be9c54657b31ec13e4cd5acb0/todos/${arrayofNotes[noteIndex]._id}`,
+                {
+                  title: title,
+                  note: note,
+                  isCompleted: false, // Set isCompleted to false
+                }
+              )
+              .then(() => {
+                // Assuming the API returns the updated array of notes
+                arrayofNotes[noteIndex].isCompleted = false; // Set isCompleted to false in the local array
+                updateNotesDisplay();
+              })
+              .catch((error) => {
+                console.error("Error updating note:", error);
+              });
+          } else {
+            // Note is in incompleted section, move it to completed section
+            axios
+              .put(
+                `https://crudcrud.com/api/4d44cf3be9c54657b31ec13e4cd5acb0/todos/${arrayofNotes[noteIndex]._id}`,
+                {
+                  title: title,
+                  note: note,
+                  isCompleted: true, // Set isCompleted to true
+                }
+              )
+              .then(() => {
+                // Assuming the API returns the updated array of notes
+                arrayofNotes[noteIndex].isCompleted = true; // Set isCompleted to true in the local array
+                updateNotesDisplay();
+              })
+              .catch((error) => {
+                console.error("Error updating note:", error);
+              });
+          }
+          break;
       }
-      break;
-    case "completed_todo":
-      arrayofNotes = arrayofNotes.map((note) =>
-        note.id.toString() === noteId
-          ? { ...note, isCompleted: !note.isCompleted }
-          : note
-      );
-      await saveNotes(arrayofNotes);
+    }
+  });
+}
 
-      const updatedCompletedTodos = arrayofNotes.filter(
-        ({ isCompleted }) => isCompleted
-      );
-      const updatedOtherNotes = arrayofNotes.filter(
-        ({ isCompleted }) => !isCompleted
-      );
-
-      showCompletedNotes.innerHTML = renderNotes(updatedCompletedTodos);
-      showOtherNotes.innerHTML = renderNotes(updatedOtherNotes);
-      toggleTitleVisibility();
-      break;
-  }
-});
+displayTodo();
